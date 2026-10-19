@@ -1,8 +1,8 @@
 import { db } from "./index";
 import { articles, categories, userArticles } from "./schema";
 
-// 임시 사용자 ID. 실제 Clerk userId로 바꿔야 화면에 보인다.
-const userId = "user_sample_001";
+// 시드 데이터를 연결할 Clerk userId. 다른 계정으로 확인하려면 이 값을 바꾼다.
+const userId = "user_3Kts22dmmxoILGoqV4BicEB00FA";
 
 const categoryRows = [
   { name: "모델·연구", description: "새로운 AI 모델 공개, 벤치마크, 연구 논문" },
