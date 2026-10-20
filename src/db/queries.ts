@@ -105,6 +105,26 @@ export async function insertUserArticles(
   await db.insert(userArticles).values(rows).onConflictDoNothing();
 }
 
+// 같은 이름의 카테고리가 이미 있으면 null을 돌려주고 만들지 않는다.
+export async function insertCategory(
+  userId: string,
+  name: string,
+  description: string,
+) {
+  const [duplicate] = await db
+    .select({ id: categories.id })
+    .from(categories)
+    .where(and(eq(categories.userId, userId), eq(categories.name, name)))
+    .limit(1);
+  if (duplicate) return null;
+
+  const [created] = await db
+    .insert(categories)
+    .values({ userId, name, description })
+    .returning();
+  return created;
+}
+
 const DEFAULT_CATEGORIES = [
   { name: "모델·연구", description: "새로운 AI 모델 공개, 벤치마크, 연구 논문" },
   { name: "제품·서비스", description: "AI 기능이 들어간 제품·앱·서비스 출시와 업데이트" },

@@ -6,6 +6,7 @@ import {
   ensureUserCategories,
   getUnclassifiedArticles,
   getUntranslatedArticles,
+  insertCategory,
   insertNewArticles,
   insertUserArticles,
   updateArticleKo,
@@ -113,5 +114,44 @@ export async function fetchNewsAction(): Promise<FetchNewsResult> {
       ok: false,
       error: "뉴스를 가져오지 못했어요. 잠시 후 다시 시도해 주세요.",
     };
+  }
+}
+
+const MAX_CATEGORY_NAME = 20;
+const MAX_CATEGORY_DESCRIPTION = 200;
+
+export type CreateCategoryResult =
+  | { ok: true; id: number }
+  | { ok: false; error: string };
+
+// 새 카테고리를 만든다. 기존 기사는 '재분류'를 실행하기 전까지 그대로 둔다.
+export async function createCategoryAction(
+  name: string,
+  description: string,
+): Promise<CreateCategoryResult> {
+  const { userId } = await auth();
+  if (!userId) return { ok: false, error: "로그인이 필요해요." };
+
+  const trimmedName = name.trim();
+  const trimmedDescription = description.trim();
+  if (!trimmedName) return { ok: false, error: "이름을 입력해 주세요." };
+  if (trimmedName.length > MAX_CATEGORY_NAME) {
+    return { ok: false, error: `이름은 ${MAX_CATEGORY_NAME}자 이하로 입력해 주세요.` };
+  }
+  if (trimmedDescription.length > MAX_CATEGORY_DESCRIPTION) {
+    return {
+      ok: false,
+      error: `설명은 ${MAX_CATEGORY_DESCRIPTION}자 이하로 입력해 주세요.`,
+    };
+  }
+
+  try {
+    const created = await insertCategory(userId, trimmedName, trimmedDescription);
+    if (!created) return { ok: false, error: "이미 같은 이름의 카테고리가 있어요." };
+    revalidatePath("/dashboard");
+    return { ok: true, id: created.id };
+  } catch (e) {
+    console.error("createCategoryAction failed", e);
+    return { ok: false, error: "카테고리를 추가하지 못했어요. 잠시 후 다시 시도해 주세요." };
   }
 }
