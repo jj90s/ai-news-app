@@ -43,14 +43,17 @@ export function NewsCard({
       </div>
 
       <h2 className="mt-3 line-clamp-2 break-keep text-base font-semibold leading-snug">
-        {article.titleKo}
+        {article.titleKo ?? article.originalTitle}
       </h2>
-      <p className="mt-1 line-clamp-1 text-xs text-slate-400">
-        {article.originalTitle}
-      </p>
+      {article.titleKo && (
+        <p className="mt-1 line-clamp-1 text-xs text-slate-400">
+          {article.originalTitle}
+        </p>
+      )}
 
+      {/* 요약이 아직 없으면 버튼 영역이 아래로 붙도록 빈 공간만 둔다. */}
       <p className="mt-3 line-clamp-4 flex-1 break-keep text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-        {article.summaryKo}
+        {article.summaryKo ?? ""}
       </p>
 
       <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4 dark:border-slate-800">

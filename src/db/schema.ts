@@ -12,8 +12,9 @@ export const articles = pgTable("articles", {
   url: text().notNull().unique(),
   source: text().notNull(),
   originalTitle: text().notNull(),
-  titleKo: text().notNull(),
-  summaryKo: text().notNull(),
+  // 번역·요약 전에는 비어 있다.
+  titleKo: text(),
+  summaryKo: text(),
   publishedAt: timestamp({ withTimezone: true }),
   createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
 });

@@ -38,6 +38,19 @@ export function getDashboardArticles(userId: string) {
     .orderBy(sql`${articles.publishedAt} desc nulls last`, desc(articles.createdAt));
 }
 
+// url이 이미 있는 기사는 건너뛰고, 새로 저장된 건수를 돌려준다.
+export async function insertNewArticles(
+  rows: (typeof articles.$inferInsert)[],
+) {
+  if (rows.length === 0) return 0;
+  const inserted = await db
+    .insert(articles)
+    .values(rows)
+    .onConflictDoNothing({ target: articles.url })
+    .returning({ id: articles.id });
+  return inserted.length;
+}
+
 export type DashboardArticle = Awaited<
   ReturnType<typeof getDashboardArticles>
 >[number];
