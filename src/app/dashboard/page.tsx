@@ -5,8 +5,12 @@ import { UserButton } from "@clerk/nextjs";
 import { getDashboardArticles, getUserCategories } from "@/db/queries";
 import { CategoryBar } from "@/components/category-bar";
 import { NewsCard } from "@/components/news-card";
+import { Pagination } from "@/components/pagination";
+import { FetchNewsButton } from "./fetch-news-button";
 
 export const metadata = { title: "대시보드 · AI 뉴스 수집기" };
+
+const PAGE_SIZE = 9;
 
 export default function DashboardPage({
   searchParams,
@@ -17,15 +21,7 @@ export default function DashboardPage({
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <span className="text-lg font-bold tracking-tight">AI 뉴스 수집기</span>
           <div className="flex items-center gap-3">
-            {/* 수집·번역·요약 로직은 3단계에서 연결한다. */}
-            <button
-              type="button"
-              disabled
-              title="뉴스 가져오기는 준비 중이에요"
-              className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-indigo-500"
-            >
-              뉴스 가져오기
-            </button>
+            <FetchNewsButton />
             <Suspense>
               <UserButton />
             </Suspense>
@@ -56,7 +52,7 @@ async function DashboardContent({
   const { userId } = await auth();
   if (!userId) redirect("/");
 
-  const { category } = await searchParams;
+  const { category, page: pageParam } = await searchParams;
   const [categories, articles] = await Promise.all([
     getUserCategories(userId),
     getDashboardArticles(userId),
@@ -76,6 +72,23 @@ async function DashboardContent({
     selectedId === null
       ? articles
       : articles.filter((a) => a.categoryId === selectedId);
+
+  // 잘못된 값이나 범위를 벗어난 페이지는 가까운 유효 페이지로 맞춘다.
+  const totalPages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
+  const requestedPage = Number(Array.isArray(pageParam) ? pageParam[0] : pageParam);
+  const page = Number.isInteger(requestedPage)
+    ? Math.min(Math.max(requestedPage, 1), totalPages)
+    : 1;
+  const pageArticles = visible.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  // 카테고리 필터는 유지하고 페이지만 바꾼다. 1페이지는 쿼리에서 생략한다.
+  function pageHref(p: number) {
+    const params = new URLSearchParams();
+    if (selectedId !== null) params.set("category", String(selectedId));
+    if (p > 1) params.set("page", String(p));
+    const query = params.toString();
+    return query ? `/dashboard?${query}` : "/dashboard";
+  }
 
   return (
     <>
@@ -102,17 +115,20 @@ async function DashboardContent({
           )}
         </div>
       ) : (
-        <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {visible.map((a) => (
-            <NewsCard
-              key={a.id}
-              article={a}
-              category={
-                a.categoryId !== null ? categoryById.get(a.categoryId) : undefined
-              }
-            />
-          ))}
-        </div>
+        <>
+          <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {pageArticles.map((a) => (
+              <NewsCard
+                key={a.id}
+                article={a}
+                category={
+                  a.categoryId !== null ? categoryById.get(a.categoryId) : undefined
+                }
+              />
+            ))}
+          </div>
+          <Pagination page={page} totalPages={totalPages} hrefFor={pageHref} />
+        </>
       )}
     </>
   );
