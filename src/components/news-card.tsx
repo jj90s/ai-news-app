@@ -1,5 +1,6 @@
 import type { DashboardArticle, UserCategory } from "@/db/queries";
 import { categoryBadgeClass } from "./category-style";
+import { SaveNewsButton } from "./save-news-button";
 
 // 2026.10.19 형식 (한국 시간 기준)
 function formatDate(date: Date | null) {
@@ -65,21 +66,7 @@ export function NewsCard({
         >
           원문 보기 ↗
         </a>
-        {/* Notion 저장 기능은 6단계에서 연결한다. 지금은 저장 여부만 표시. */}
-        {saved ? (
-          <span className="rounded-lg bg-emerald-50 px-3 py-1.5 text-sm text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
-            ✓ 저장됨
-          </span>
-        ) : (
-          <button
-            type="button"
-            disabled
-            title="Notion 저장은 준비 중이에요"
-            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 opacity-60 dark:border-slate-700 dark:text-slate-200"
-          >
-            Notion 저장
-          </button>
-        )}
+        <SaveNewsButton articleId={article.id} saved={saved} />
       </div>
     </article>
   );

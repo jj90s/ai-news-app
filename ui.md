@@ -168,15 +168,15 @@ dark:border-slate-800 dark:bg-slate-900
 3. **요약:** `mt-3 text-sm leading-relaxed text-slate-600 line-clamp-4 break-keep` (`flex-1`로 하단 영역을 아래로 밀어낸다)
 4. **하단 액션 줄:** `mt-5 flex items-center justify-between border-t border-slate-100 pt-4`
    - 왼쪽: `원문 보기 ↗` 링크 (`text-sm font-medium text-indigo-600 hover:underline`, `target="_blank" rel="noopener noreferrer"`)
-   - 오른쪽: `Notion 저장` 버튼
+   - 오른쪽: `뉴스 저장` 버튼
 
 **카테고리 배지:** `inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium` + 2장의 색 클래스
 
-**Notion 저장 버튼 상태**
+**뉴스 저장 버튼 상태**
 
 | 상태 | 표시 | 클래스 |
 |---|---|---|
-| 기본 | `Notion 저장` | `rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50` |
+| 기본 | `뉴스 저장` | `rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50` |
 | 저장 중 | 스피너 + `저장 중…` | 위와 동일 + `disabled opacity-60` |
 | 저장됨 | `✓ 저장됨` | `border-transparent bg-emerald-50 text-emerald-700 cursor-default` (`disabled`, 중복 저장 방지) |
 | 실패 | `다시 시도` | `border-red-200 text-red-600` |

@@ -4,14 +4,17 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@clerk/nextjs/server";
 import {
   ensureUserCategories,
+  getArticleForNotion,
   getUnclassifiedArticles,
   getUntranslatedArticles,
   insertCategory,
   insertNewArticles,
   insertUserArticles,
+  setNotionPageId,
   updateArticleKo,
 } from "@/db/queries";
 import { classifyArticles } from "@/lib/ai/classify";
+import { createNotionPage } from "@/lib/notion/save";
 import { translateAndSummarize } from "@/lib/ai/translate";
 import { FEEDS } from "@/lib/rss/feeds";
 import { fetchFeedArticles, type FeedItem } from "@/lib/rss/parse";
@@ -114,6 +117,31 @@ export async function fetchNewsAction(): Promise<FetchNewsResult> {
       ok: false,
       error: "뉴스를 가져오지 못했어요. 잠시 후 다시 시도해 주세요.",
     };
+  }
+}
+
+export type SaveNewsResult = { ok: true } | { ok: false; error: string };
+
+// 뉴스 1건을 Notion 데이터베이스에 저장하고, 사용자별 저장 여부(notionPageId)를 기록한다.
+export async function saveNewsToNotionAction(
+  articleId: number,
+): Promise<SaveNewsResult> {
+  const { userId } = await auth();
+  if (!userId) return { ok: false, error: "로그인이 필요해요." };
+
+  try {
+    const article = await getArticleForNotion(userId, articleId);
+    if (!article) return { ok: false, error: "저장할 뉴스를 찾지 못했어요." };
+    // 이미 저장된 뉴스는 다시 만들지 않는다.
+    if (article.notionPageId) return { ok: true };
+
+    const pageId = await createNotionPage(article);
+    await setNotionPageId(userId, articleId, pageId);
+    revalidatePath("/dashboard");
+    return { ok: true };
+  } catch (e) {
+    console.error("saveNewsToNotionAction failed", e);
+    return { ok: false, error: "저장하지 못했어요. 잠시 후 다시 시도해 주세요." };
   }
 }
 

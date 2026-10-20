@@ -105,6 +105,42 @@ export async function insertUserArticles(
   await db.insert(userArticles).values(rows).onConflictDoNothing();
 }
 
+// Notion 저장에 필요한 기사 정보. 이 사용자의 분류가 없으면 null.
+export async function getArticleForNotion(userId: string, articleId: number) {
+  const [row] = await db
+    .select({
+      url: articles.url,
+      source: articles.source,
+      originalTitle: articles.originalTitle,
+      titleKo: articles.titleKo,
+      summaryKo: articles.summaryKo,
+      publishedAt: articles.publishedAt,
+      categoryName: categories.name,
+      notionPageId: userArticles.notionPageId,
+    })
+    .from(userArticles)
+    .innerJoin(articles, eq(articles.id, userArticles.articleId))
+    .innerJoin(categories, eq(categories.id, userArticles.categoryId))
+    .where(
+      and(eq(userArticles.userId, userId), eq(userArticles.articleId, articleId)),
+    )
+    .limit(1);
+  return row ?? null;
+}
+
+export async function setNotionPageId(
+  userId: string,
+  articleId: number,
+  notionPageId: string,
+) {
+  await db
+    .update(userArticles)
+    .set({ notionPageId })
+    .where(
+      and(eq(userArticles.userId, userId), eq(userArticles.articleId, articleId)),
+    );
+}
+
 // 같은 이름의 카테고리가 이미 있으면 null을 돌려주고 만들지 않는다.
 export async function insertCategory(
   userId: string,
