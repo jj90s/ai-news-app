@@ -52,7 +52,7 @@ export function FetchNewsButton() {
             />
           </svg>
         )}
-        {pending ? "가져오는 중…" : "뉴스 가져오기"}
+        {pending ? "수집·번역 중…" : "뉴스 가져오기"}
       </button>
 
       {/* 결과·오류는 헤더 아래 버튼 옆에 떠서 표시한다. */}
@@ -69,7 +69,11 @@ export function FetchNewsButton() {
           >
             {result.inserted > 0
               ? `새 기사 ${result.inserted}건을 가져왔어요.`
-              : "새로운 기사가 없어요."}
+              : result.translated > 0
+                ? `이전에 못 한 기사 ${result.translated}건을 번역했어요.`
+                : "새로운 기사가 없어요."}
+            {result.pending > 0 &&
+              ` (${result.pending}건은 번역에 실패해 다음에 다시 시도해요.)`}
             {result.failedSources.length > 0 &&
               ` (${result.failedSources.join(", ")}은(는) 가져오지 못했어요.)`}
           </p>

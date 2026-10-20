@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { db } from "./index";
 import { articles, categories, userArticles } from "./schema";
 
@@ -49,6 +49,78 @@ export async function insertNewArticles(
     .onConflictDoNothing({ target: articles.url })
     .returning({ id: articles.id });
   return inserted.length;
+}
+
+// 번역·요약이 아직 안 된 기사 (새 기사 + 이전에 실패한 기사). 최신순으로 limit건.
+export function getUntranslatedArticles(limit: number) {
+  return db
+    .select({
+      id: articles.id,
+      url: articles.url,
+      originalTitle: articles.originalTitle,
+    })
+    .from(articles)
+    .where(isNull(articles.titleKo))
+    .orderBy(sql`${articles.publishedAt} desc nulls last`, desc(articles.createdAt))
+    .limit(limit);
+}
+
+export async function updateArticleKo(
+  rows: { id: number; titleKo: string; summaryKo: string }[],
+) {
+  // neon-http는 트랜잭션이 없으므로 건별로 갱신한다. 각 갱신은 독립적이라 중간에 실패해도 안전하다.
+  await Promise.all(
+    rows.map((r) =>
+      db
+        .update(articles)
+        .set({ titleKo: r.titleKo, summaryKo: r.summaryKo })
+        .where(eq(articles.id, r.id)),
+    ),
+  );
+}
+
+// 번역은 끝났지만 이 사용자의 분류가 아직 없는 기사
+export function getUnclassifiedArticles(userId: string) {
+  return db
+    .select({
+      id: articles.id,
+      titleKo: articles.titleKo,
+      summaryKo: articles.summaryKo,
+    })
+    .from(articles)
+    .leftJoin(
+      userArticles,
+      and(
+        eq(userArticles.articleId, articles.id),
+        eq(userArticles.userId, userId),
+      ),
+    )
+    .where(and(isNotNull(articles.titleKo), isNull(userArticles.articleId)));
+}
+
+export async function insertUserArticles(
+  rows: (typeof userArticles.$inferInsert)[],
+) {
+  if (rows.length === 0) return;
+  await db.insert(userArticles).values(rows).onConflictDoNothing();
+}
+
+const DEFAULT_CATEGORIES = [
+  { name: "모델·연구", description: "새로운 AI 모델 공개, 벤치마크, 연구 논문" },
+  { name: "제품·서비스", description: "AI 기능이 들어간 제품·앱·서비스 출시와 업데이트" },
+  { name: "투자·비즈니스", description: "투자 유치, 인수합병, 실적, 기업 전략" },
+  { name: "규제·정책", description: "정부 규제, 법안, 저작권·안전 관련 정책" },
+  { name: "기타", description: "위 분류에 맞지 않는 뉴스" },
+];
+
+// 카테고리가 하나도 없는 사용자에게 기본 카테고리를 만들어 주고 목록을 돌려준다.
+export async function ensureUserCategories(userId: string) {
+  const existing = await getUserCategories(userId);
+  if (existing.length > 0) return existing;
+  await db
+    .insert(categories)
+    .values(DEFAULT_CATEGORIES.map((c) => ({ ...c, userId })));
+  return getUserCategories(userId);
 }
 
 export type DashboardArticle = Awaited<

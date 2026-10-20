@@ -8,6 +8,11 @@ export type FeedArticle = {
   publishedAt: Date;
 };
 
+// 번역·요약에 쓰는 RSS 본문. DB에는 저장하지 않는다.
+export type FeedItem = FeedArticle & { content: string };
+
+const MAX_CONTENT_LENGTH = 3000;
+
 const parser = new XMLParser({
   ignoreAttributes: false,
   attributeNamePrefix: "@_",
@@ -36,7 +41,22 @@ function atomLink(node: unknown): string {
   return link?.["@_href"]?.trim() ?? "";
 }
 
-type RawItem = { url: string; title: string; date: string };
+// HTML 태그와 엔티티를 걷어내 요약에 쓸 평문으로 만든다.
+function stripHtml(html: string): string {
+  return html
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;|&apos;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, MAX_CONTENT_LENGTH);
+}
+
+type RawItem = { url: string; title: string; date: string; content: string };
 
 function extractItems(xml: string): RawItem[] {
   const doc = parser.parse(xml);
@@ -47,6 +67,7 @@ function extractItems(xml: string): RawItem[] {
       url: text(item.link),
       title: text(item.title),
       date: text(item.pubDate),
+      content: stripHtml(text(item["content:encoded"]) || text(item.description)),
     }));
   }
 
@@ -56,6 +77,7 @@ function extractItems(xml: string): RawItem[] {
       url: atomLink(entry.link),
       title: text(entry.title),
       date: text(entry.published) || text(entry.updated),
+      content: stripHtml(text(entry.content) || text(entry.summary)),
     }));
   }
 
@@ -68,7 +90,7 @@ export async function fetchFeedArticles(
   feed: Feed,
   now: Date,
   hours = 24,
-): Promise<FeedArticle[]> {
+): Promise<FeedItem[]> {
   const res = await fetch(feed.url, {
     cache: "no-store",
     signal: AbortSignal.timeout(10_000),
@@ -77,7 +99,7 @@ export async function fetchFeedArticles(
   if (!res.ok) throw new Error(`${feed.source} 응답 오류 (${res.status})`);
 
   const since = now.getTime() - hours * 60 * 60 * 1000;
-  const articles: FeedArticle[] = [];
+  const articles: FeedItem[] = [];
 
   for (const item of extractItems(await res.text())) {
     const publishedAt = new Date(item.date);
@@ -89,6 +111,7 @@ export async function fetchFeedArticles(
       source: feed.source,
       originalTitle: item.title,
       publishedAt,
+      content: item.content,
     });
   }
   return articles;
