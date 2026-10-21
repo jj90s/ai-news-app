@@ -6,6 +6,7 @@ import { getDashboardArticles, getUserCategories } from "@/db/queries";
 import { CategoryBar } from "@/components/category-bar";
 import { NewsCard } from "@/components/news-card";
 import { Pagination } from "@/components/pagination";
+import { SearchForm } from "@/components/search-form";
 import { FetchNewsButton } from "./fetch-news-button";
 
 export const metadata = { title: "대시보드 · AI 뉴스 수집기" };
@@ -30,16 +31,40 @@ export default function DashboardPage({
       </header>
 
       <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-        <h1 className="text-2xl font-bold tracking-tight">오늘의 AI 뉴스</h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          해외 AI 뉴스를 한국어로 요약해 드려요.
-        </p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">오늘의 AI 뉴스</h1>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              해외 AI 뉴스를 한국어로 요약해 드려요.
+            </p>
+          </div>
+          <Suspense fallback={<div className="h-10 sm:w-96" aria-hidden />}>
+            <SearchSlot searchParams={searchParams} />
+          </Suspense>
+        </div>
 
         <Suspense fallback={<DashboardSkeleton />}>
           <DashboardContent searchParams={searchParams} />
         </Suspense>
       </main>
     </div>
+  );
+}
+
+// 제목 줄의 검색창. searchParams는 요청 시점 데이터라 별도 Suspense 안에서 읽는다.
+async function SearchSlot({
+  searchParams,
+}: {
+  searchParams: PageProps<"/dashboard">["searchParams"];
+}) {
+  const { category, q } = await searchParams;
+  const query = (Array.isArray(q) ? q[0] : q)?.trim() ?? "";
+  const categoryId = Number(Array.isArray(category) ? category[0] : category);
+  return (
+    <SearchForm
+      query={query}
+      categoryId={Number.isInteger(categoryId) ? categoryId : null}
+    />
   );
 }
 
@@ -52,7 +77,7 @@ async function DashboardContent({
   const { userId } = await auth();
   if (!userId) redirect("/");
 
-  const { category, page: pageParam } = await searchParams;
+  const { category, page: pageParam, q } = await searchParams;
   const [categories, articles] = await Promise.all([
     getUserCategories(userId),
     getDashboardArticles(userId),
@@ -68,10 +93,17 @@ async function DashboardContent({
 
   const requestedId = Number(Array.isArray(category) ? category[0] : category);
   const selectedId = categoryById.has(requestedId) ? requestedId : null;
-  const visible =
-    selectedId === null
-      ? articles
-      : articles.filter((a) => a.categoryId === selectedId);
+  const query = (Array.isArray(q) ? q[0] : q)?.trim() ?? "";
+  const keyword = query.toLowerCase();
+  // 카테고리 필터 위에 키워드 검색을 겹친다. 한국어 제목·요약과 원문 제목에서 찾는다.
+  const visible = articles.filter(
+    (a) =>
+      (selectedId === null || a.categoryId === selectedId) &&
+      (keyword === "" ||
+        [a.titleKo, a.summaryKo, a.originalTitle].some((text) =>
+          text?.toLowerCase().includes(keyword),
+        )),
+  );
 
   // 잘못된 값이나 범위를 벗어난 페이지는 가까운 유효 페이지로 맞춘다.
   const totalPages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
@@ -81,13 +113,14 @@ async function DashboardContent({
     : 1;
   const pageArticles = visible.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  // 카테고리 필터는 유지하고 페이지만 바꾼다. 1페이지는 쿼리에서 생략한다.
+  // 카테고리 필터와 검색어는 유지하고 페이지만 바꾼다. 1페이지는 쿼리에서 생략한다.
   function pageHref(p: number) {
     const params = new URLSearchParams();
     if (selectedId !== null) params.set("category", String(selectedId));
+    if (query) params.set("q", query);
     if (p > 1) params.set("page", String(p));
-    const query = params.toString();
-    return query ? `/dashboard?${query}` : "/dashboard";
+    const search = params.toString();
+    return search ? `/dashboard?${search}` : "/dashboard";
   }
 
   return (
@@ -98,15 +131,24 @@ async function DashboardContent({
           counts={counts}
           total={articles.length}
           selectedId={selectedId}
+          query={query}
         />
       </div>
+
+      {query && (
+        <p role="status" className="mt-4 text-sm text-slate-500 dark:text-slate-400">
+          ‘{query}’ 검색 결과 {visible.length}건
+        </p>
+      )}
 
       {visible.length === 0 ? (
         <div className="mt-6 rounded-xl border border-dashed border-slate-300 py-20 text-center dark:border-slate-700">
           <p className="font-medium">
             {articles.length === 0
               ? "아직 가져온 뉴스가 없어요."
-              : "이 카테고리에는 아직 뉴스가 없어요."}
+              : query
+                ? "검색 결과가 없어요."
+                : "이 카테고리에는 아직 뉴스가 없어요."}
           </p>
           {articles.length === 0 && (
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">

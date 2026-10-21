@@ -45,19 +45,23 @@ export function CategoryBar({
   counts,
   total,
   selectedId,
+  query,
 }: {
   categories: UserCategory[];
   counts: Map<number, number>;
   total: number;
   selectedId: number | null;
+  // 검색어가 있으면 카테고리를 바꿔도 유지한다.
+  query: string;
 }) {
+  const q = query ? `q=${encodeURIComponent(query)}` : "";
   return (
     <nav
       aria-label="카테고리"
       className="flex flex-nowrap items-center gap-2 overflow-x-auto pb-1 sm:flex-wrap"
     >
       <Chip
-        href="/dashboard"
+        href={q ? `/dashboard?${q}` : "/dashboard"}
         active={selectedId === null}
         label="전체"
         count={total}
@@ -65,7 +69,7 @@ export function CategoryBar({
       {categories.map((c) => (
         <Chip
           key={c.id}
-          href={`/dashboard?category=${c.id}`}
+          href={`/dashboard?category=${c.id}${q ? `&${q}` : ""}`}
           active={selectedId === c.id}
           label={c.name}
           count={counts.get(c.id) ?? 0}

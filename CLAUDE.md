@@ -16,6 +16,10 @@ npm run lint    # eslint (flat config: eslint.config.mjs)
 
 테스트 러너는 아직 설정되어 있지 않다.
 
+### 커스텀 슬래시 명령
+
+- `/news-workflow <브랜치이름>` (`.claude/commands/news-workflow.md`): 새 기능 개발 워크플로우. main 확인 → 브랜치 생성(이름 없으면 영어 소문자-하이픈 형식으로 제안) → 개발 → '완료'/'done' 입력 시 커밋 메시지 제안·커밋·main 병합 → 작업 요약.
+
 ## 기술 스택
 
 - Next.js 16.4 (App Router) / React 19.3 / TypeScript / Tailwind v4, 소스는 `src/app/`, 임포트 별칭 `@/*` → `src/*`
