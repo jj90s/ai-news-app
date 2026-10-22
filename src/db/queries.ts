@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { db } from "./index";
 import { articles, categories, userArticles } from "./schema";
 
@@ -35,7 +35,16 @@ export function getDashboardArticles(userId: string) {
       ),
     )
     .leftJoin(categories, eq(categories.id, userArticles.categoryId))
-    .orderBy(sql`${articles.publishedAt} desc nulls last`, desc(articles.createdAt));
+    .orderBy(
+      sql`${articles.publishedAt} desc nulls last`,
+      desc(articles.createdAt),
+    );
+}
+
+// DB에 수집된 전체 기사 수 (기사는 전 사용자 공용)
+export async function getArticleCount() {
+  const [row] = await db.select({ count: count() }).from(articles);
+  return row.count;
 }
 
 // url이 이미 있는 기사는 건너뛰고, 새로 저장된 건수를 돌려준다.
@@ -61,7 +70,10 @@ export function getUntranslatedArticles(limit: number) {
     })
     .from(articles)
     .where(isNull(articles.titleKo))
-    .orderBy(sql`${articles.publishedAt} desc nulls last`, desc(articles.createdAt))
+    .orderBy(
+      sql`${articles.publishedAt} desc nulls last`,
+      desc(articles.createdAt),
+    )
     .limit(limit);
 }
 
@@ -122,7 +134,10 @@ export async function getArticleForNotion(userId: string, articleId: number) {
     .innerJoin(articles, eq(articles.id, userArticles.articleId))
     .innerJoin(categories, eq(categories.id, userArticles.categoryId))
     .where(
-      and(eq(userArticles.userId, userId), eq(userArticles.articleId, articleId)),
+      and(
+        eq(userArticles.userId, userId),
+        eq(userArticles.articleId, articleId),
+      ),
     )
     .limit(1);
   return row ?? null;
@@ -137,7 +152,10 @@ export async function setNotionPageId(
     .update(userArticles)
     .set({ notionPageId })
     .where(
-      and(eq(userArticles.userId, userId), eq(userArticles.articleId, articleId)),
+      and(
+        eq(userArticles.userId, userId),
+        eq(userArticles.articleId, articleId),
+      ),
     );
 }
 
@@ -162,9 +180,18 @@ export async function insertCategory(
 }
 
 const DEFAULT_CATEGORIES = [
-  { name: "모델·연구", description: "새로운 AI 모델 공개, 벤치마크, 연구 논문" },
-  { name: "제품·서비스", description: "AI 기능이 들어간 제품·앱·서비스 출시와 업데이트" },
-  { name: "투자·비즈니스", description: "투자 유치, 인수합병, 실적, 기업 전략" },
+  {
+    name: "모델·연구",
+    description: "새로운 AI 모델 공개, 벤치마크, 연구 논문",
+  },
+  {
+    name: "제품·서비스",
+    description: "AI 기능이 들어간 제품·앱·서비스 출시와 업데이트",
+  },
+  {
+    name: "투자·비즈니스",
+    description: "투자 유치, 인수합병, 실적, 기업 전략",
+  },
   { name: "규제·정책", description: "정부 규제, 법안, 저작권·안전 관련 정책" },
   { name: "기타", description: "위 분류에 맞지 않는 뉴스" },
 ];
@@ -182,7 +209,9 @@ export async function ensureUserCategories(userId: string) {
 export type DashboardArticle = Awaited<
   ReturnType<typeof getDashboardArticles>
 >[number];
-export type UserCategory = Awaited<ReturnType<typeof getUserCategories>>[number];
+export type UserCategory = Awaited<
+  ReturnType<typeof getUserCategories>
+>[number];
 
 // 기사를 DB에서 지운다. 기사는 전 사용자 공용이므로 user_articles도 cascade로 함께 지워진다.
 export async function deleteArticle(articleId: number) {

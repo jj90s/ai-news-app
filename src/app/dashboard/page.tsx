@@ -1,8 +1,13 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { UserButton } from "@clerk/nextjs";
-import { getDashboardArticles, getUserCategories } from "@/db/queries";
+import {
+  getArticleCount,
+  getDashboardArticles,
+  getUserCategories,
+} from "@/db/queries";
 import { CategoryBar } from "@/components/category-bar";
 import { NewsCard } from "@/components/news-card";
 import { Pagination } from "@/components/pagination";
@@ -20,7 +25,9 @@ export default function DashboardPage({
     <div className="flex-1 bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
       <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/80 backdrop-blur dark:border-slate-800 dark:bg-slate-900/80">
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <span className="text-lg font-bold tracking-tight">AI 뉴스 수집기</span>
+          <span className="text-lg font-bold tracking-tight">
+            AI 뉴스 수집기
+          </span>
           <div className="flex items-center gap-3">
             <FetchNewsButton />
             <Suspense>
@@ -33,7 +40,21 @@ export default function DashboardPage({
       <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">오늘의 AI 뉴스</h1>
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-2xl font-bold tracking-tight">
+                오늘의 AI 뉴스
+              </h1>
+              <Suspense
+                fallback={
+                  <span
+                    className="h-6 w-24 animate-pulse rounded-full bg-slate-200/70 dark:bg-slate-800"
+                    aria-hidden
+                  />
+                }
+              >
+                <ArticleCountBadge />
+              </Suspense>
+            </div>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
               해외 AI 뉴스를 한국어로 요약해 드려요.
             </p>
@@ -48,6 +69,20 @@ export default function DashboardPage({
         </Suspense>
       </main>
     </div>
+  );
+}
+
+// 제목 옆의 총 뉴스 수 배지. DB 조회라 요청 시점에 실행되도록 connection()으로 동적 처리한다.
+async function ArticleCountBadge() {
+  await connection();
+  const total = await getArticleCount();
+  return (
+    <span
+      role="status"
+      className="inline-flex rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300"
+    >
+      총 {total.toLocaleString("ko-KR")}개의 뉴스
+    </span>
   );
 }
 
@@ -107,7 +142,9 @@ async function DashboardContent({
 
   // 잘못된 값이나 범위를 벗어난 페이지는 가까운 유효 페이지로 맞춘다.
   const totalPages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
-  const requestedPage = Number(Array.isArray(pageParam) ? pageParam[0] : pageParam);
+  const requestedPage = Number(
+    Array.isArray(pageParam) ? pageParam[0] : pageParam,
+  );
   const page = Number.isInteger(requestedPage)
     ? Math.min(Math.max(requestedPage, 1), totalPages)
     : 1;
@@ -136,7 +173,10 @@ async function DashboardContent({
       </div>
 
       {query && (
-        <p role="status" className="mt-4 text-sm text-slate-500 dark:text-slate-400">
+        <p
+          role="status"
+          className="mt-4 text-sm text-slate-500 dark:text-slate-400"
+        >
           ‘{query}’ 검색 결과 {visible.length}건
         </p>
       )}
@@ -164,7 +204,9 @@ async function DashboardContent({
                 key={a.id}
                 article={a}
                 category={
-                  a.categoryId !== null ? categoryById.get(a.categoryId) : undefined
+                  a.categoryId !== null
+                    ? categoryById.get(a.categoryId)
+                    : undefined
                 }
               />
             ))}
