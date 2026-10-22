@@ -183,3 +183,12 @@ export type DashboardArticle = Awaited<
   ReturnType<typeof getDashboardArticles>
 >[number];
 export type UserCategory = Awaited<ReturnType<typeof getUserCategories>>[number];
+
+// 기사를 DB에서 지운다. 기사는 전 사용자 공용이므로 user_articles도 cascade로 함께 지워진다.
+export async function deleteArticle(articleId: number) {
+  const deleted = await db
+    .delete(articles)
+    .where(eq(articles.id, articleId))
+    .returning({ id: articles.id });
+  return deleted.length > 0;
+}

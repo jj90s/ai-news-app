@@ -1,5 +1,6 @@
 import type { DashboardArticle, UserCategory } from "@/db/queries";
 import { categoryBadgeClass } from "./category-style";
+import { DeleteNewsButton } from "./delete-news-button";
 import { SaveNewsButton } from "./save-news-button";
 
 // 2026.10.19 형식 (한국 시간 기준)
@@ -26,8 +27,9 @@ export function NewsCard({
   const saved = article.notionPageId !== null;
 
   return (
-    <article className="flex h-full flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
-      <div className="flex items-center justify-between gap-3">
+    <article className="relative flex h-full flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-slate-800 dark:bg-slate-900">
+      <DeleteNewsButton articleId={article.id} />
+      <div className="flex items-center justify-between gap-3 pr-7">
         {category ? (
           <span
             className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${categoryBadgeClass(category.name, category.id)}`}
